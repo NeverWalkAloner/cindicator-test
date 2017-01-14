@@ -1,5 +1,7 @@
 Веб сервис реализующий систему опросов.
 
+[![Build status](https://travis-ci.org/NeverWalkAloner/cindicator-test.svg?branch=master)](https://travis-ci.org/NeverWalkAloner/cindicator-test)
+
 # Установка
 
 установите Django и djangorestframework:
