@@ -100,7 +100,7 @@ Authorization: Token 67a0ebaead3d8f26a3d02ad3d18c049ff4bfa08f
 Тело запроса:
 ```json
 {
-  "answer": answer_id
+  "answer": "answer_id"
 }
 ```
 
