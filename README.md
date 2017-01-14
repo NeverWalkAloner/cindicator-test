@@ -1,5 +1,17 @@
 Веб сервис реализующий систему опросов.
 
+# Установка
+
+установите Django и djangorestframework:
+```
+pip install -r requirements.txt
+```
+запустите тесты:
+```
+python manage.py test polls
+```
+
+
 # Описание сервиса
 
 ## 1. Регистрация нового пользователя
