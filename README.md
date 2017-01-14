@@ -1,5 +1,4 @@
-# cindicator-test
-Тестовое задание состоящее из веб сервиса реализующего систему опросов.
+Веб сервис реализующий систему опросов.
 
 # Описание сервиса
 
@@ -94,29 +93,37 @@ Authorization: Token 67a0ebaead3d8f26a3d02ad3d18c049ff4bfa08f
 ```
 
 Тело ответа:
-```json{
+```json
+{
   "user": "username",
   "question": "Выборы США 2016",
   "answer": 1
 }
 ```
-## 5. Голосование в опросе
-http://127.0.0.1/questions/{id}/vote/ method: POST
+## 6. Просмотр статистики
+Доступно только суперюзеру или участнику группы Clients.
+http://127.0.0.1/questions/statistics/ method: GET
 обязательный заголовок:
 ```json
 Authorization: Token 67a0ebaead3d8f26a3d02ad3d18c049ff4bfa08f
 ```
-Тело запроса:
-```json
-{
-  "answer": answer_id
-}
-```
 
 Тело ответа:
-```json{
-  "user": "username",
-  "question": "Выборы США 2016",
-  "answer": 1
-}
+```json
+{
+    "question": 1,
+    "question__title": "Выборы США 2016",
+    "answer__answer_text": "Мистер\tТрамп",
+    "total": 4,
+    "answer": 1,
+    "frequency": "0.57"
+  },
+  {
+    "question": 1,
+    "question__title": "Выборы США 2016",
+    "answer__answer_text": "Миссис\tКлинтон",
+    "total": 3,
+    "answer": 2,
+    "frequency": "0.43"
+  }
 ```
