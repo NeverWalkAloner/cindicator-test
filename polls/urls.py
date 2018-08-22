@@ -7,6 +7,7 @@ from .views import (QuestionDetails,
                     StatisticView)
 
 
+app_name = 'polls'
 urlpatterns = [
     url(r'^get-auth-token/', obtain_auth_token, name='login'),
     url(r'^sign-on/', RegisterUser.as_view(), name='sign-on'),
