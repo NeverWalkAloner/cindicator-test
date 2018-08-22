@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib.auth.models import User
-from django.core.urlresolvers import reverse
 from django.utils.timezone import localtime, now, timedelta
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from .models import Question, Answer
@@ -31,10 +31,10 @@ def create_question(future_days):
                                 text='test',
                                 date_start=start_date,
                                 date_end=start_date + timedelta(5),
-                                owner=User.objects.get(pk=1))
-    Answer.objects.create(question=q,
+                                owner=User.objects.get())
+    a = Answer.objects.create(question=q,
                           answer_text='text')
-    return q.id
+    return q.id, a.id
 
 
 class QuestionListTest(APITestCase):
@@ -103,7 +103,7 @@ class QuestionDetailsTest(APITestCase):
         проверяет доступность деталей опроса для аутентифицированных запросов
         """
         token = create_account()
-        q_id = create_question(-1)
+        q_id, _ = create_question(-1)
         url = reverse('polls:question_details', kwargs={'pk': q_id})
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = self.client.get(url)
@@ -114,7 +114,7 @@ class QuestionDetailsTest(APITestCase):
         проверяет доступность деталей неактивного опроса для аутентифицированных запросов
         """
         token = create_account()
-        q_id = create_question(1)
+        q_id, _ = create_question(1)
         url = reverse('polls:question_details', kwargs={'pk': q_id})
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = self.client.get(url)
@@ -139,22 +139,22 @@ class VoteTest(APITestCase):
         проверяет доступность голосования для аутентифицированных запросов
         """
         token = create_account()
-        create_question(0)
-        url = reverse('polls:vote', kwargs={'pk': 1})
-        data = {"answer": 1}
+        question_id, answer_id = create_question(0)
+        url = reverse('polls:vote', kwargs={'pk': question_id})
+        data = {"answer": answer_id}
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = self.client.post(url, data=data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.content, b'{"user":"test_account","question":"test","answer":1}')
+        self.assertEqual(response.data['answer'], answer_id)
 
     def test_authenticated_not_active_question_vote(self):
         """
         проверяет доступность голосования по неактивным опросам для аутентифицированных запросов
         """
         token = create_account()
-        create_question(1)
-        url = reverse('polls:vote', kwargs={'pk': 1})
-        data = {"answer": 1}
+        question_id, answer_id = create_question(1)
+        url = reverse('polls:vote', kwargs={'pk': question_id})
+        data = {"answer": answer_id}
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = self.client.post(url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
