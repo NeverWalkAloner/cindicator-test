@@ -158,7 +158,7 @@ class VoteTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = self.client.post(url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.content, b'["Question is not active"]')
+        self.assertIn(b'["Question is not active"]', response.content)
 
 
 class StatisticTest(APITestCase):

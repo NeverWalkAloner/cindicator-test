@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 from django.db.models import Count
 from django.utils.timezone import localtime, now
-from rest_framework import status
 from rest_framework.generics import (ListAPIView,
                                      RetrieveAPIView,
                                      CreateAPIView)
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from .models import Question, Vote
 from .permissions import ClientPermission
 from .serializers import (QuestionSerializer,
@@ -48,32 +46,16 @@ class VoteView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
 
     def get_object(self):
-        return Question.objects.get(pk=self.kwargs['pk'])
+        self.object = Question.objects.get(pk=self.kwargs['pk'])
+        return self.object
 
-    @staticmethod
-    def validations(user, question, answer):
-        # проверяем принадлежит ли ответ опросу
-        if answer not in question.answer_set.all():
-            raise ValidationError('Answer is not valid')
-
-        # проверяем акивен ли опрос по датам начала и конца
-        if answer.question.date_start > current_time() or answer.question.date_end < current_time():
-            raise ValidationError('Question is not active')
-        queryset = Vote.objects.filter(user=user,
-                                       answer__question=answer.question)
-
-        # в случае если пользователь уже голосовал вызываем исключение
-        if queryset.exists():
-            raise ValidationError('Already voted')
+    def get_serializer_context(self):
+        context = super(VoteView, self).get_serializer_context()
+        context['question'] = self.get_object()
+        return context
 
     def perform_create(self, serializer):
-        user = self.request.user
-        question = self.get_object()
-        serializer.validated_data['user'] = self.request.user
-        serializer.validated_data['question'] = question
-        answer = serializer.validated_data.get('answer')
-        self.validations(user, question, answer)
-        super(VoteView, self).perform_create(serializer)
+        serializer.save(question=self.object, user=self.request.user)
 
 
 class RegisterUser(CreateAPIView):
@@ -82,17 +64,6 @@ class RegisterUser(CreateAPIView):
     """
     serializer_class = UserSerialization
     permission_classes = (AllowAny,)
-
-    # Переопределяем метод чтобы включить в ответ токен
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response({'user_id': serializer.instance.id,
-                         'token': serializer.instance.auth_token.key},
-                        status=status.HTTP_201_CREATED,
-                        headers=headers)
 
 
 class StatisticView(ListAPIView):

@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 from django.contrib.auth.models import User
-from rest_framework.serializers import ModelSerializer, CharField, Serializer, IntegerField, DecimalField
+from django.utils.timezone import localtime, now
+from rest_framework import serializers
 from .models import Answer, Question, Vote
 
 
-class UserSerialization(ModelSerializer):
+class UserSerialization(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True, source='id')
+    token = serializers.CharField(read_only=True, source='auth_token.key')
+
     """
     Сериализатор модели User для регистрации пользователей
     """
@@ -18,10 +22,13 @@ class UserSerialization(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('username', 'password')
+        fields = ('username', 'password', 'user_id', 'token')
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
 
-class AnswerSerializer(ModelSerializer):
+class AnswerSerializer(serializers.ModelSerializer):
     """
     Сериализатор модели Answer
     """
@@ -31,29 +38,52 @@ class AnswerSerializer(ModelSerializer):
                   'answer_text')
 
 
-class VoteSerializer(ModelSerializer):
+class VoteSerializer(serializers.ModelSerializer):
     """
     Сериализатор модели Vote
     """
-    user = CharField(required=False)
-    question = CharField(required=False)
+    def validate(self, attrs):
+        validated = super(VoteSerializer, self).validate(attrs)
+        answer = validated['answer']
+        question = self.context['question']
+        # проверяем принадлежит ли ответ опросу
+        if answer not in question.answer_set.all():
+            raise serializers.ValidationError('Answer is not valid')
+
+        # проверяем акивен ли опрос по датам начала и конца
+        current_time = localtime(now())
+        if answer.question.date_start > current_time or \
+                        answer.question.date_end < current_time:
+            raise serializers.ValidationError('Question is not active')
+
+        user = self.context['request'].user
+        queryset = Vote.objects.filter(user=user,
+                                       answer__question=answer.question)
+
+        # в случае если пользователь уже голосовал вызываем исключение
+        if queryset.exists():
+            raise serializers.ValidationError('Already voted')
+
+        return validated
 
     class Meta:
         model = Vote
-        fields = ('user', 'question', 'answer')
+        fields = ('question', 'answer')
+        extra_kwargs = {
+            'question': {'required': False}
+        }
 
 
-class QuestionListSerializer(ModelSerializer):
+class QuestionListSerializer(serializers.ModelSerializer):
     """
     Сериализатор списка вопросов
     """
     class Meta:
         model = Question
-        fields = ('title',
-                  'pub_date')
+        fields = ('id', 'title', 'pub_date')
 
 
-class QuestionSerializer(ModelSerializer):
+class QuestionSerializer(serializers.ModelSerializer):
     """
     Сериализатор модели Question
     """
@@ -68,13 +98,13 @@ class QuestionSerializer(ModelSerializer):
                   'answer_set')
 
 
-class StatisticSerializer(Serializer):
+class StatisticSerializer(serializers.Serializer):
     """
     Сериализатор статистических данных
     """
-    question = IntegerField()
-    question__title = CharField()
-    answer__answer_text = CharField()
-    total = IntegerField()
-    answer = IntegerField()
-    frequency = DecimalField(max_digits=5, decimal_places=2)
+    question = serializers.IntegerField()
+    question__title = serializers.CharField()
+    answer__answer_text = serializers.CharField()
+    total = serializers.IntegerField()
+    answer = serializers.IntegerField()
+    frequency = serializers.DecimalField(max_digits=5, decimal_places=2)
