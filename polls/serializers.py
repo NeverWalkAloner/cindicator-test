@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from django.utils.timezone import localtime, now
 from rest_framework import serializers
@@ -107,4 +109,8 @@ class StatisticSerializer(serializers.Serializer):
     answer__answer_text = serializers.CharField()
     total = serializers.IntegerField()
     answer = serializers.IntegerField()
-    frequency = serializers.DecimalField(max_digits=5, decimal_places=2)
+    frequency = serializers.SerializerMethodField()
+
+    def get_frequency(self, obj):
+        frequency = obj.get('per_answer') / obj.get('total')
+        return round(Decimal(frequency), 2)

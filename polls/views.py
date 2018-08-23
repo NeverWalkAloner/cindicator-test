@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-from django.db.models import Count
+from django.db.models import F, Count
+from django.db.models.expressions import Window
 from django.utils.timezone import localtime, now
 from rest_framework.generics import (ListAPIView,
                                      RetrieveAPIView,
                                      CreateAPIView)
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
+
 from .models import Question, Vote
 from .permissions import ClientPermission
 from .serializers import (QuestionSerializer,
@@ -46,8 +47,9 @@ class VoteView(CreateAPIView):
     permission_classes = (IsAuthenticated,)
 
     def get_object(self):
-        self.object = Question.objects.get(pk=self.kwargs['pk'])
-        return self.object
+        if self.kwargs:
+            self.object = Question.objects.get(pk=self.kwargs['pk'])
+            return self.object
 
     def get_serializer_context(self):
         context = super(VoteView, self).get_serializer_context()
@@ -76,15 +78,19 @@ class StatisticView(ListAPIView):
     permission_classes = [ClientPermission, ]
 
     def get_queryset(self):
-        question_qs = Question.objects.all().values_list('id').annotate(total=Count('vote')).order_by('id')
-        vote_qs = Vote.objects.all().values('question',
-                                            'answer',
-                                            'question__title',
-                                            'answer__answer_text').annotate(total=Count('answer'))
-        for vote in vote_qs:
-            vote['frequency'] = vote['total'] / question_qs.get(pk=vote['question'])[1]
-        return vote_qs
+        vote_qs = Vote.objects.annotate(
+            total=Window(
+                expression=Count('answer'),
+                partition_by=[F('question')])).annotate(
+            per_answer=Window(
+                expression=Count('answer'),
+                partition_by=[F('question'), F('answer')])
+        )
 
-    def list(self, request, *args, **kwargs):
-        serializer = StatisticSerializer(self.get_queryset(), many=True)
-        return Response(serializer.data)
+        vote_qs = vote_qs.values(
+            'question', 'question__title',
+            'answer__answer_text', 'answer',
+            'total','per_answer'
+        ).distinct().order_by('question')
+
+        return vote_qs
